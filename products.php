@@ -19,14 +19,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $nameAr   = $conn->real_escape_string(trim($_POST['name_ar']));
         $catId    = (int)$_POST['category_id'];
         $type     = in_array($_POST['type'], ['piece','weight']) ? $_POST['type'] : 'piece';
-        $barcode  = $conn->real_escape_string(trim($_POST['barcode'] ?? ''));
+        $barcode  = trim($_POST['barcode'] ?? '');
         $basePrice= (float)$_POST['base_price'];
         $weightU  = in_array($_POST['weight_unit'] ?? 'gram', ['gram','tola']) ? $_POST['weight_unit'] : 'gram';
         $stock    = (float)$_POST['stock'];
         $threshold= (float)$_POST['low_stock_threshold'];
         $desc     = $conn->real_escape_string($_POST['description'] ?? '');
         $descAr   = $conn->real_escape_string($_POST['description_ar'] ?? '');
-        $barcodeClause = $barcode ? "'$barcode'" : 'NULL';
+
+        // Auto-generate main barcode if blank and editing existing product
+        if (!$barcode && $id) {
+            $barcode = 'P' . str_pad($id, 6, '0', STR_PAD_LEFT);
+        }
+        // For new products, we'll generate after getting the insert_id
+        $barcodeClause = $barcode ? "'" . $conn->real_escape_string($barcode) . "'" : 'NULL';
 
         if ($id) {
             $conn->query("UPDATE products SET name='$name', name_ar='$nameAr', category_id=$catId, type='$type', barcode=$barcodeClause, base_price=$basePrice, weight_unit='$weightU', stock=$stock, low_stock_threshold=$threshold, description='$desc', description_ar='$descAr' WHERE id=$id");
@@ -34,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $conn->query("INSERT INTO products (name, name_ar, category_id, type, barcode, base_price, weight_unit, stock, low_stock_threshold, description, description_ar) VALUES ('$name','$nameAr',$catId,'$type',$barcodeClause,$basePrice,'$weightU',$stock,$threshold,'$desc','$descAr')");
             $id = $conn->insert_id;
+            // Auto-generate barcode for new products if blank
+            if (!$barcode) {
+                $autoBarcode = 'P' . str_pad($id, 6, '0', STR_PAD_LEFT);
+                $conn->query("UPDATE products SET barcode='$autoBarcode' WHERE id=$id");
+            }
             $msg = $isAr ? 'تمت إضافة المنتج.' : 'Product added.';
         }
 

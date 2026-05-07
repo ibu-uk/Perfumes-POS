@@ -70,7 +70,11 @@ CREATE TABLE products (
     image VARCHAR(255),
     is_active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+    INDEX idx_category (category_id),
+    INDEX idx_type (type),
+    INDEX idx_is_active (is_active),
+    INDEX idx_barcode (barcode)
 );
 
 -- Product Sizes (for piece-type products like perfumes)
@@ -83,7 +87,9 @@ CREATE TABLE product_sizes (
     stock INT DEFAULT 0,
     low_stock_threshold INT DEFAULT 5,
     sort_order INT DEFAULT 0,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    INDEX idx_product (product_id),
+    INDEX idx_barcode (barcode)
 );
 
 -- Sales / Invoices
@@ -106,7 +112,12 @@ CREATE TABLE sales (
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (branch_id) REFERENCES branches(id)
+    FOREIGN KEY (branch_id) REFERENCES branches(id),
+    INDEX idx_user (user_id),
+    INDEX idx_branch (branch_id),
+    INDEX idx_invoice (invoice_no),
+    INDEX idx_status (status),
+    INDEX idx_created (created_at)
 );
 
 -- Sale Items
@@ -124,7 +135,10 @@ CREATE TABLE sale_items (
     total DECIMAL(10,3) NOT NULL,
     FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL
+    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL,
+    INDEX idx_sale (sale_id),
+    INDEX idx_product (product_id),
+    INDEX idx_size (product_size_id)
 );
 
 -- Expenses
@@ -138,7 +152,10 @@ CREATE TABLE expenses (
     branch_id INT DEFAULT 1,
     expense_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user (user_id),
+    INDEX idx_branch (branch_id),
+    INDEX idx_date (expense_date)
 );
 
 -- Settings
