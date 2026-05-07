@@ -255,7 +255,7 @@ include 'includes/head.php';
                       <input type="hidden" name="id" value="<?= $p['id'] ?>">
                       <button type="submit" class="btn btn-sm btn-danger">🗑</button>
                     </form>
-                    <a href="barcode_print.php?id=<?= $p['id'] ?>" target="_blank" class="btn btn-sm btn-outline" title="Print Barcode">🔖</a>
+                    <button type="button" onclick="openBarcodeModal(<?= $p['id'] ?>, '<?= htmlspecialchars($p['name']) ?>', '<?= htmlspecialchars($p['name_ar']) ?>', '<?= $p['type'] ?>', <?= htmlspecialchars(json_encode($parsedSizes)) ?>)" class="btn btn-sm btn-outline" title="Print Barcode">🔖</button>
                   </div>
                 </td>
               </tr>
@@ -420,8 +420,69 @@ include 'includes/head.php';
   </div>
 </div>
 </div>
+
+<!-- Barcode Size Selection Modal -->
+<div id="barcodeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:18px;font-weight:700;"><?= $isAr ? 'اختر الحجم للطباعة' : 'Select Size to Print' ?></h3>
+      <button onclick="closeBarcodeModal()" style="background:none;border:none;font-size:24px;cursor:pointer;">×</button>
+    </div>
+    <div id="barcodeModalContent"></div>
+  </div>
+</div>
+
 <script>
 let sizeIdx = <?= count($editSizes) ?: 3 ?>;
+
+function openBarcodeModal(productId, nameEn, nameAr, type, sizes) {
+  const modal = document.getElementById('barcodeModal');
+  const content = document.getElementById('barcodeModalContent');
+  const isAr = <?= $isAr ? 'true' : 'false' ?>;
+
+  let html = '<div style="font-weight:600;margin-bottom:12px;">' + (isAr ? nameAr : nameEn) + '</div>';
+
+  if (type === 'weight') {
+    // Weight products - show single card
+    html += '<div onclick="printBarcode(' + productId + ')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center;background:#f9fafb;transition:all .15s;" onmouseover="this.style.borderColor=\'#2563eb\';this.style.background=\'#eff6ff\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.background=\'#f9fafb\'">';
+    html += '<div style="font-size:14px;font-weight:700;">' + (isAr ? 'المنتج الرئيسي' : 'Main Product') + '</div>';
+    html += '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + (isAr ? 'طباعة باركود المنتج' : 'Print product barcode') + '</div>';
+    html += '</div>';
+  } else {
+    // Piece products - show size cards
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;">';
+    if (sizes && sizes.length > 0) {
+      sizes.forEach(function(size, index) {
+        html += '<div onclick="printSizeBarcode(' + productId + ', \'' + size.label + '\')" style="cursor:pointer;border:2px solid #e5e7eb;border-radius:12px;padding:16px;text-align:center;background:#f9fafb;transition:all .15s;" onmouseover="this.style.borderColor=\'#2563eb\';this.style.background=\'#eff6ff\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.background=\'#f9fafb\'">';
+        html += '<div style="font-size:18px;font-weight:800;color:#2563eb;">' + size.label + '</div>';
+        html += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">' + parseFloat(size.price).toFixed(3) + ' KD</div>';
+        html += '<div style="font-size:11px;color:#6b7280;">Stock: ' + size.stock + '</div>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="color:#9ca3af;padding:20px;text-align:center;">' + (isAr ? 'لا توجد أحجام متاحة' : 'No sizes available') + '</div>';
+    }
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+  modal.style.display = 'flex';
+}
+
+function closeBarcodeModal() {
+  document.getElementById('barcodeModal').style.display = 'none';
+}
+
+function printBarcode(productId) {
+  window.open('barcode_print.php?id=' + productId, '_blank');
+  closeBarcodeModal();
+}
+
+function printSizeBarcode(productId, sizeLabel) {
+  // Open barcode print with size filter - we'll need to modify barcode_print.php to accept size parameter
+  window.open('barcode_print.php?id=' + productId + '&size=' + encodeURIComponent(sizeLabel), '_blank');
+  closeBarcodeModal();
+}
 function addSizeRow() {
     const c = document.getElementById('sizesContainer');
     const d = document.createElement('div');

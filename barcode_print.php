@@ -4,12 +4,21 @@ requireLogin();
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) exit;
 
+$sizeFilter = $_GET['size'] ?? '';
+
 $rProd = $conn->query("SELECT * FROM products WHERE id=$id LIMIT 1");
 $prod = $rProd ? $rProd->fetch_assoc() : null;
 if (!$prod) exit;
 
 $rSizes = $conn->query("SELECT * FROM product_sizes WHERE product_id=$id ORDER BY sort_order");
 $sizes = $rSizes ? $rSizes->fetch_all(MYSQLI_ASSOC) : [];
+
+// Filter sizes if specific size is requested
+if ($sizeFilter) {
+    $sizes = array_filter($sizes, function($s) use ($sizeFilter) {
+        return $s['size_label'] === $sizeFilter;
+    });
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -65,31 +74,22 @@ if (empty($labelsData) && !$prod['barcode']) {
     $labelsData[] = ['barcode' => 'P' . str_pad($id, 6, '0', STR_PAD_LEFT), 'name' => $prod['name'], 'name_ar' => $prod['name_ar'], 'size' => '', 'price' => $prod['base_price']];
 }
 
-$qty = (int)($_GET['qty'] ?? 1);
 foreach ($labelsData as $i => $lbl):
 ?>
-<?php for ($q = 0; $q < $qty; $q++): ?>
 <div class="label">
   <div class="p-name"><?= htmlspecialchars($lbl['name']) ?></div>
   <div class="p-name" style="font-family:'Noto Sans Arabic',sans-serif;direction:rtl;"><?= htmlspecialchars($lbl['name_ar']) ?></div>
   <?php if ($lbl['size']): ?><div class="p-size"><?= htmlspecialchars($lbl['size']) ?></div><?php endif; ?>
-  <svg id="bc_<?= $i ?>_<?= $q ?>"></svg>
+  <svg id="bc_<?= $i ?>"></svg>
   <div class="p-price"><?= number_format($lbl['price'],3) ?> KD</div>
   <div class="p-code"><?= htmlspecialchars($lbl['barcode']) ?></div>
 </div>
 <script>
-JsBarcode("#bc_<?= $i ?>_<?= $q ?>", "<?= addslashes($lbl['barcode']) ?>", {
+JsBarcode("#bc_<?= $i ?>", "<?= addslashes($lbl['barcode']) ?>", {
   format: "CODE128", width: 1.2, height: 35, displayValue: false, margin: 2
 });
 </script>
-<?php endfor; ?>
 <?php endforeach; ?>
-</div>
-<div class="controls" style="margin-top:10px;">
-  <label style="font-size:13px;">Copies per label: 
-    <input type="number" id="qtyInput" value="<?= $qty ?>" min="1" max="50" style="width:60px;font-size:13px;padding:4px;">
-  </label>
-  <button onclick="location.href='barcode_print.php?id=<?= $id ?>&qty='+document.getElementById('qtyInput').value" style="padding:6px 14px;margin-left:8px;cursor:pointer;">Update</button>
 </div>
 </body>
 </html>
