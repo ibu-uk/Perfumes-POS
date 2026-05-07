@@ -58,7 +58,7 @@ if ($reportType === 'dashboard') {
 elseif ($reportType === 'product') {
     header('Content-Disposition: attachment; filename="product_report_' . date('Y-m-d') . '.csv"');
 
-    $rProdSales = $conn->query("SELECT si.product_name, si.product_name_ar, si.size_label, SUM(si.qty) as total_qty, SUM(si.total) as total_rev, COUNT(DISTINCT si.sale_id) as sales_count FROM sale_items si JOIN sales s ON s.id=si.sale_id $baseWhere GROUP BY si.product_name, si.size_label ORDER BY total_rev DESC");
+    $rProdSales = $conn->query("SELECT si.product_name, si.product_name_ar, si.size_label, SUM(si.qty) as total_qty, SUM(si.total) as total_rev, COUNT(DISTINCT si.sale_id) as sales_count FROM sale_items si JOIN sales s ON s.id=si.sale_id $baseWhere GROUP BY si.product_name, si.product_name_ar, si.size_label ORDER BY total_rev DESC");
     $productSales = $rProdSales ? $rProdSales->fetch_all(MYSQLI_ASSOC) : [];
 
     $headers = [

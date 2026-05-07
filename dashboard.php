@@ -45,7 +45,7 @@ $rRecent = $conn->query("SELECT s.*, u.full_name as cashier FROM sales s LEFT JO
 $recentSales = $rRecent ? $rRecent->fetch_all(MYSQLI_ASSOC) : [];
 
 // Top products today
-$rTop = $conn->query("SELECT si.product_name, si.product_name_ar, SUM(si.qty) as total_qty, SUM(si.total) as total_rev FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE DATE(s.created_at)='$today' AND s.status!='void' GROUP BY si.product_name ORDER BY total_rev DESC LIMIT 5");
+$rTop = $conn->query("SELECT si.product_name, si.product_name_ar, SUM(si.qty) as total_qty, SUM(si.total) as total_rev FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE DATE(s.created_at)='$today' AND s.status!='void' GROUP BY si.product_name, si.product_name_ar ORDER BY total_rev DESC LIMIT 5");
 $topProducts = $rTop ? $rTop->fetch_all(MYSQLI_ASSOC) : [];
 
 $pageTitle = $isAr ? 'لوحة التحكم' : 'Dashboard';
