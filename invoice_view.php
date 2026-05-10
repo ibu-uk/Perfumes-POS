@@ -21,6 +21,28 @@ $shopPhone = getSetting('shop_phone', '');
 $pageTitle = ($isAr ? 'فاتورة' : 'Invoice') . ' ' . $sale['invoice_no'];
 include 'includes/head.php';
 ?>
+<style>
+@media print {
+  body, html { margin: 0 !important; padding: 0 !important; }
+  .topbar, .sidebar, .app-layout > div:first-child { display: none !important; }
+  .main-content { padding: 0 !important; margin: 0 !important; width: 100% !important; }
+  .page-content { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  .card { box-shadow: none !important; border: none !important; margin: 0 !important; }
+  /* Hide header with shop info */
+  .card > div:first-child { display: none !important; }
+  /* Hide invoice meta */
+  .card > div:nth-child(2) { display: none !important; }
+  /* Hide footer */
+  .card > div:last-child { display: none !important; }
+  /* Show only items and totals */
+  .card > div:nth-child(3), .card > div:nth-child(4) { display: block !important; }
+  /* Remove scrolling */
+  table { width: 100% !important; table-layout: fixed !important; }
+  td, th { overflow: visible !important; }
+  /* Hide any filters or controls */
+  .no-print { display: none !important; }
+}
+</style>
 <div class="app-layout">
 <?php include 'includes/sidebar.php'; ?>
 <div class="main-content">
@@ -60,24 +82,14 @@ include 'includes/head.php';
       </div>
 
       <!-- Invoice Meta -->
-      <div style="padding:20px 32px;display:grid;grid-template-columns:1fr 1fr;gap:20px;border-bottom:1px solid #e5e7eb;">
+      <div style="padding:12px 32px;display:grid;grid-template-columns:1fr 1fr;gap:12px;border-bottom:1px solid #e5e7eb;">
         <div>
-          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:4px;"><?= $isAr ? 'رقم الفاتورة' : 'Invoice No' ?></div>
-          <div style="font-size:20px;font-weight:800;color:#2563eb;"><?= htmlspecialchars($sale['invoice_no']) ?></div>
+          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:2px;"><?= $isAr ? 'رقم الفاتورة' : 'Invoice No' ?></div>
+          <div style="font-size:16px;font-weight:800;color:#2563eb;"><?= htmlspecialchars($sale['invoice_no']) ?></div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:4px;"><?= $isAr ? 'التاريخ والوقت' : 'Date & Time' ?></div>
-          <div style="font-weight:600;"><?= date('d/m/Y h:i A', strtotime($sale['created_at'])) ?></div>
-        </div>
-        <?php if ($sale['customer_name']): ?>
-        <div>
-          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:4px;"><?= $isAr ? 'العميل' : 'Customer' ?></div>
-          <div style="font-weight:600;"><?= htmlspecialchars($sale['customer_name']) ?></div>
-        </div>
-        <?php endif; ?>
-        <div style="text-align:right;">
-          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:4px;"><?= $isAr ? 'الكاشير' : 'Cashier' ?></div>
-          <div style="font-weight:600;"><?= htmlspecialchars($sale['cashier_name'] ?? '—') ?></div>
+          <div style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;margin-bottom:2px;"><?= $isAr ? 'التاريخ' : 'Date' ?></div>
+          <div style="font-weight:600;"><?= date('d/m/Y', strtotime($sale['created_at'])) ?></div>
         </div>
       </div>
 
@@ -85,24 +97,22 @@ include 'includes/head.php';
       <div style="padding:0 32px;">
         <table style="width:100%;">
           <thead><tr style="border-bottom:1px solid #e5e7eb;">
-            <th style="padding:10px 0;text-align:left;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'المنتج' : 'Product' ?></th>
-            <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'الكمية' : 'Qty' ?></th>
-            <th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'السعر' : 'Price' ?></th>
-            <th style="padding:10px 0;text-align:right;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'الإجمالي' : 'Total' ?></th>
+            <th style="padding:8px 0;text-align:left;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'المنتج' : 'Product' ?></th>
+            <th style="padding:8px 8px;text-align:center;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'الكمية' : 'Qty' ?></th>
+            <th style="padding:8px 0;text-align:right;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;"><?= $isAr ? 'الإجمالي' : 'Total' ?></th>
           </tr></thead>
           <tbody>
           <?php foreach ($items as $item): ?>
           <tr style="border-bottom:1px solid #f3f4f6;">
-            <td style="padding:12px 0;">
+            <td style="padding:10px 0;">
               <div style="font-weight:600;"><?= htmlspecialchars($item['product_name']) ?></div>
               <?php if ($item['product_name_ar']): ?>
-              <div style="font-size:12px;color:#6b7280;font-family:'Noto Sans Arabic',sans-serif;"><?= htmlspecialchars($item['product_name_ar']) ?></div>
+              <div style="font-size:11px;color:#6b7280;font-family:'Noto Sans Arabic',sans-serif;"><?= htmlspecialchars($item['product_name_ar']) ?></div>
               <?php endif; ?>
-              <?php if ($item['size_label']): ?><div style="font-size:11px;color:#9ca3af;"><?= htmlspecialchars($item['size_label']) ?></div><?php endif; ?>
+              <?php if ($item['size_label']): ?><div style="font-size:10px;color:#9ca3af;"><?= htmlspecialchars($item['size_label']) ?></div><?php endif; ?>
             </td>
-            <td style="padding:12px 8px;text-align:center;font-weight:600;"><?= number_format($item['qty'], 2) ?></td>
-            <td style="padding:12px 8px;text-align:right;color:#6b7280;"><?= number_format($item['unit_price'],3) ?> KD</td>
-            <td style="padding:12px 0;text-align:right;font-weight:700;"><?= number_format($item['total'],3) ?> KD</td>
+            <td style="padding:10px 8px;text-align:center;font-weight:600;"><?= number_format($item['qty'], $item['qty'] == intval($item['qty']) ? 0 : 2) ?></td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;"><?= number_format($item['total'],3) ?> KD</td>
           </tr>
           <?php endforeach; ?>
           </tbody>
@@ -110,38 +120,28 @@ include 'includes/head.php';
       </div>
 
       <!-- Totals -->
-      <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+      <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
         <div style="max-width:280px;margin-left:auto;">
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#6b7280;">
-            <span><?= $isAr ? 'المجموع الفرعي' : 'Subtotal' ?></span>
-            <span><?= number_format($sale['subtotal'],3) ?> KD</span>
+          <?php if ($sale['promo_discount'] > 0): ?>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#166534;">
+            <span><?= $isAr ? 'خصم ترويجي' : 'Promo Discount' ?></span>
+            <span>- <?= number_format($sale['promo_discount'],3) ?> KD</span>
           </div>
+          <?php endif; ?>
           <?php if ($sale['discount'] > 0): ?>
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#dc2626;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#dc2626;">
             <span><?= $isAr ? 'الخصم' : 'Discount' ?></span>
             <span>- <?= number_format($sale['discount'],3) ?> KD</span>
           </div>
           <?php endif; ?>
-          <?php if ($sale['tax'] > 0): ?>
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#6b7280;">
-            <span><?= $isAr ? 'الضريبة' : 'Tax' ?></span>
-            <span><?= number_format($sale['tax'],3) ?> KD</span>
-          </div>
-          <?php endif; ?>
-          <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:20px;font-weight:800;border-top:2px solid #1f2937;margin-top:6px;">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:18px;font-weight:800;border-top:2px solid #1f2937;margin-top:4px;">
             <span><?= $isAr ? 'الإجمالي' : 'TOTAL' ?></span>
             <div style="text-align:right;display:flex;align-items:center;gap:8px;">
               <span style="color:#2563eb;"><?= number_format($sale['total'],3) ?> KD</span>
-              <span style="font-size:12px;color:#6b7280;font-weight:600;"><?= strtoupper($sale['payment_method']) ?></span>
+              <span style="font-size:11px;color:#6b7280;font-weight:600;"><?= strtoupper($sale['payment_method']) ?></span>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="padding:16px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-        <div style="font-size:13px;color:#6b7280;"><?= htmlspecialchars(getSetting('receipt_footer', 'Thank you for your visit!')) ?></div>
-        <div style="font-size:13px;color:#6b7280;font-family:'Noto Sans Arabic',sans-serif;margin-top:3px;"><?= htmlspecialchars(getSetting('receipt_footer_ar', 'شكراً لزيارتكم!')) ?></div>
       </div>
     </div>
   </div>

@@ -21,12 +21,63 @@ $sales = $rSales ? $rSales->fetch_all(MYSQLI_ASSOC) : [];
 $rTotals = $conn->query("SELECT SUM(total) as grand_total, SUM(paid_amount) as grand_paid, COUNT(*) as cnt FROM sales s $where");
 $totals = $rTotals ? $rTotals->fetch_assoc() : [];
 
+$shopName = getSetting('shop_name', 'Demo POS');
+$shopNameAr = getSetting('shop_name_ar', 'Demo POS');
+$shopAddr = getSetting('shop_address', '');
+$shopAddrAr = getSetting('shop_address_ar', '');
+$shopPhone = getSetting('shop_phone', '');
+
 $pageTitle = $isAr ? 'الفواتير' : 'Invoices';
 include 'includes/head.php';
 ?>
+<style>
+@media print {
+  .sidebar, .topbar, .no-print { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .page-content { padding: 0 !important; margin: 0 !important; }
+  body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  .stat-grid { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #000 !important; margin-bottom: 0 !important; }
+  .table-wrapper { overflow: visible !important; max-height: none !important; }
+  table { width: 100% !important; table-layout: fixed !important; }
+  /* Style total amount in print */
+  tfoot td {
+    vertical-align: middle !important;
+  }
+  tfoot td:nth-child(2) {
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    color: #1e3a5f !important;
+    text-align: right !important;
+  }
+  /* Hide filter card */
+  .page-content > div:nth-child(2) { display: none !important; }
+  /* Hide card header */
+  .card-header { display: none !important; }
+  /* Hide actions column */
+  th:last-child, td:last-child { display: none !important; }
+}
+.print-header {
+  display: none;
+  text-align: center;
+  padding: 16px;
+  border-bottom: 2px solid #000;
+  margin-bottom: 16px;
+}
+@media print {
+  .print-header { display: block !important; }
+}
+</style>
 <div class="app-layout">
 <?php include 'includes/sidebar.php'; ?>
 <div class="main-content">
+  <div class="print-header">
+    <div style="font-size:20px;font-weight:800;"><?= htmlspecialchars($shopName) ?></div>
+    <div style="font-size:12px;color:#666;font-family:'Noto Sans Arabic',sans-serif;direction:rtl;"><?= htmlspecialchars($shopNameAr) ?></div>
+    <div style="font-size:11px;color:#666;margin-top:4px;"><?= htmlspecialchars($shopAddr) ?></div>
+    <div style="font-size:11px;color:#666;font-family:'Noto Sans Arabic',sans-serif;direction:rtl;"><?= htmlspecialchars($shopAddrAr) ?></div>
+    <div style="font-size:11px;color:#666;margin-top:2px;">📞 <?= htmlspecialchars($shopPhone) ?></div>
+  </div>
   <div class="topbar">
     <div class="topbar-title"><?= $isAr ? 'الفواتير' : 'Invoices' ?></div>
     <div class="topbar-right">
@@ -154,7 +205,7 @@ include 'includes/head.php';
           <tfoot>
             <tr style="background:#f9fafb;font-weight:700;">
               <td colspan="4" style="padding:12px 16px;text-align:<?= $isAr ? 'right' : 'left' ?>;"><?= $isAr ? 'الإجمالي' : 'TOTAL' ?></td>
-              <td style="padding:12px 16px;"><?= number_format((float)($totals['grand_total'] ?? 0),3) ?> KD</td>
+              <td style="padding:12px 16px;font-size:18px;font-weight:800;color:#1e3a5f;"><?= number_format((float)($totals['grand_total'] ?? 0),3) ?> KD</td>
               <td colspan="4"></td>
             </tr>
           </tfoot>

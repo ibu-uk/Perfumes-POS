@@ -393,12 +393,15 @@ include 'includes/head.php';
   .no-print { display: none !important; }
   .app-layout { display: block; }
   .sidebar { display: none !important; }
-  .main-content { margin: 0 !important; padding: 0 !important; }
-  .page-content { padding: 0 !important; }
-  body { background: #fff !important; }
+  .topbar { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .page-content { padding: 0 !important; margin: 0 !important; }
+  body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   .card { box-shadow: none !important; border: 1px solid #000 !important; margin-bottom: 20px !important; }
   .stat-grid { grid-template-columns: repeat(3, 1fr) !important; }
-  .table-wrapper { overflow: visible !important; }
+  .table-wrapper { overflow: visible !important; max-height: none !important; }
+  table { width: 100% !important; table-layout: fixed !important; }
+  /* Hide all filter cards */
   .page-content > div:nth-child(2),
   .page-content > div:nth-child(3),
   .page-content > div:nth-child(4) {

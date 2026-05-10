@@ -28,6 +28,66 @@ foreach ($products as &$p) {
 }
 unset($p);
 
+// Load active promotions
+$now = date('Y-m-d');
+$rPromos = $conn->query("
+    SELECT p.*, pp.product_id, pp.product_size_id
+    FROM promotions p
+    JOIN promotion_products pp ON pp.promotion_id = p.id
+    WHERE p.is_active = 1 
+    AND p.start_date <= '$now' 
+    AND p.end_date >= '$now'
+");
+$promos = $rPromos ? $rPromos->fetch_all(MYSQLI_ASSOC) : [];
+$promosByProduct = [];
+$promosBySize = [];
+foreach ($promos as $promo) {
+    if ($promo['product_size_id']) {
+        // Size-level promo
+        $promosBySize[$promo['product_size_id']] = [
+            'id' => $promo['id'],
+            'name' => $promo['name'],
+            'discount_type' => $promo['discount_type'],
+            'discount_value' => $promo['discount_value']
+        ];
+    } else {
+        // Product-level promo
+        $promosByProduct[$promo['product_id']] = [
+            'id' => $promo['id'],
+            'name' => $promo['name'],
+            'discount_type' => $promo['discount_type'],
+            'discount_value' => $promo['discount_value']
+        ];
+    }
+}
+
+// Attach promotions to products and sizes
+foreach ($products as &$p) {
+    // Check size-level promo first, then product-level
+    $p['promotion'] = null;
+}
+foreach ($sizesAll as &$s) {
+    $s['promotion'] = $promosBySize[$s['id']] ?? null;
+    // Also attach to parent product if no size-level promo but product-level promo exists
+    if (!$s['promotion'] && isset($promosByProduct[$s['product_id']])) {
+        $s['promotion'] = $promosByProduct[$s['product_id']];
+    }
+}
+// Re-attach sizes to products
+$sizesByProduct = [];
+foreach ($sizesAll as $s) $sizesByProduct[$s['product_id']][] = $s;
+foreach ($products as &$p) {
+    $p['sizes'] = $sizesByProduct[$p['id']] ?? [];
+    // Product-level promo (for weight products or when no specific size promo)
+    if (!isset($promosByProduct[$p['id']])) {
+        $p['promotion'] = null;
+    } else {
+        $p['promotion'] = $promosByProduct[$p['id']];
+    }
+}
+unset($p);
+unset($s);
+
 $pageTitle = $isAr ? 'بيع جديد' : 'New Sale';
 include 'includes/head.php';
 ?>
@@ -112,10 +172,7 @@ include 'includes/head.php';
               <input type="tel" id="custName" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'رقم الجوال' : 'Mobile No.' ?>" pattern="[0-9+]*">
               <div style="display:flex;gap:4px;">
                 <input type="number" id="discountAmt" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'خصم' : 'Disc.' ?>" min="0" step="0.001" oninput="recalcCart()">
-                <select id="discountType" class="form-control" style="width:60px;font-size:12px;" onchange="recalcCart()">
-                  <option value="fixed">KD</option>
-                  <option value="percent">%</option>
-                </select>
+                <span style="display:flex;align-items:center;font-size:12px;font-weight:600;color:#6b7280;padding:0 8px;">KD</span>
               </div>
             </div>
           </div>
@@ -470,12 +527,58 @@ function closeWeightModal() { document.getElementById('weightModal').classList.a
 
 // ---- Cart ----
 function addToCart(item) {
+    // Check for promotion (size-level first, then product-level)
+    let finalPrice = item.price;
+    let promoInfo = null;
+    
+    if (item.sizeId) {
+        // Check size-level promo
+        const size = allProducts.flatMap(p => p.sizes || []).find(s => s.id === item.sizeId);
+        if (size && size.promotion) {
+            const promo = size.promotion;
+            if (promo.discount_type === 'percent') {
+                finalPrice = item.price * (1 - promo.discount_value / 100);
+            } else {
+                finalPrice = item.price - promo.discount_value;
+            }
+            finalPrice = Math.max(0, finalPrice);
+            promoInfo = promo;
+        }
+    }
+    
+    // If no size-level promo, check product-level
+    if (!promoInfo) {
+        const product = allProducts.find(p => p.id === item.id);
+        if (product && product.promotion) {
+            const promo = product.promotion;
+            if (promo.discount_type === 'percent') {
+                finalPrice = item.price * (1 - promo.discount_value / 100);
+            } else {
+                finalPrice = item.price - promo.discount_value;
+            }
+            finalPrice = Math.max(0, finalPrice);
+            promoInfo = promo;
+        }
+    }
+    
     const key = item.id + '_' + (item.sizeId || 'base') + '_' + (item.type === 'weight' ? Date.now() : '');
     const existing = item.type !== 'weight' ? cart.find(c => c.key === (item.id + '_' + (item.sizeId || 'base') + '_')) : null;
     if (existing) {
         existing.qty = parseFloat((existing.qty + (item.qty || 1)).toFixed(3));
     } else {
-        cart.push({ key: key, id: item.id, name: item.name, name_ar: item.name_ar, sizeId: item.sizeId, sizeLabel: item.sizeLabel, price: item.price, qty: item.qty || 1, type: item.type });
+        cart.push({ 
+            key: key, 
+            id: item.id, 
+            name: item.name, 
+            name_ar: item.name_ar, 
+            sizeId: item.sizeId, 
+            sizeLabel: item.sizeLabel, 
+            price: finalPrice, 
+            originalPrice: item.price,
+            promo: promoInfo,
+            qty: item.qty || 1, 
+            type: item.type 
+        });
     }
     renderCart();
 }
@@ -501,9 +604,15 @@ function renderCart() {
                 + '<input class="qty-input" type="number" value="' + c.qty + '" min="1" onchange="setQty(' + i + ',this.value)">'
                 + '<button class="qty-btn" onclick="changeQty(' + i + ',1)">+</button>'
               + '</div>';
+        // Promo badge
+        let promoBadge = '';
+        if (c.promo) {
+            const discValue = c.promo.discount_type === 'percent' ? c.promo.discount_value + '%' : c.promo.discount_value + ' KD';
+            promoBadge = '<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:#dcfce7;color:#166534;margin-left:4px;">🏷 ' + discValue + '</span>';
+        }
         return '<div class="cart-item">'
             + '<div class="cart-item-info">'
-                + '<div class="cart-item-name">' + name + '</div>'
+                + '<div class="cart-item-name">' + name + (c.promo ? promoBadge : '') + '</div>'
                 + '<div class="cart-item-sub">' + (c.sizeLabel || '') + ' · ' + c.price.toFixed(3) + ' KD ' + (c.type==='weight'?(isAr?'لكل وحدة':'/unit'):(isAr?'للقطعة':'/ea')) + '</div>'
             + '</div>'
             + qtyCtrl
@@ -530,7 +639,6 @@ function removeFromCart(i) {
 function recalcCart() {
     const sub = cart.reduce((s, c) => s + c.price * c.qty, 0);
     let disc = parseFloat(document.getElementById('discountAmt').value) || 0;
-    if (document.getElementById('discountType').value === 'percent') disc = sub * disc / 100;
     disc = Math.min(disc, sub);
     const total = Math.max(0, sub - disc);
     document.getElementById('subtotalDisplay').textContent = sub.toFixed(3) + ' KD';
@@ -595,8 +703,7 @@ async function completeSale() {
 
     const sub = cart.reduce((s, c) => s + c.price * c.qty, 0);
     let discVal = parseFloat(document.getElementById('discountAmt').value) || 0;
-    const discType = document.getElementById('discountType').value;
-    let discAmt = discType === 'percent' ? sub * discVal / 100 : discVal;
+    let discAmt = discVal;
     discAmt = Math.min(discAmt, sub);
     const total = Math.max(0, sub - discAmt);
     const paid = total;
@@ -605,12 +712,19 @@ async function completeSale() {
         cart: cart,
         subtotal: sub,
         discount: discAmt,
-        discount_type: discType,
+        discount_type: 'fixed',
         total: total,
         paid_amount: paid,
         payment_method: selectedMethod,
         customer_name: document.getElementById('custName').value,
         tax: 0,
+        promo_discount: cart.reduce((sum, c) => {
+            if (c.promo && c.originalPrice) {
+                const savings = (c.originalPrice - c.price) * c.qty;
+                return sum + savings;
+            }
+            return sum;
+        }, 0)
     };
 
     try {

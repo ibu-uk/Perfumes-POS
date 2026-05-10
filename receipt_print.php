@@ -173,6 +173,12 @@ $footerAr    = getSetting('receipt_footer_ar', 'شكراً لزيارتكم!');
     <td><span class="bi-en">Subtotal</span> <span class="bi-ar sub">/ المجموع الفرعي</span></td>
     <td class="val"><?= number_format($sale['subtotal'],3) ?> KD</td>
   </tr>
+  <?php if ((float)$sale['promo_discount'] > 0): ?>
+  <tr>
+    <td><span class="bi-en">Promo</span> <span class="bi-ar sub">/ خصم ترويجي</span></td>
+    <td class="val" style="color:#166534;">- <?= number_format($sale['promo_discount'],3) ?> KD</td>
+  </tr>
+  <?php endif; ?>
   <?php if ((float)$sale['discount'] > 0): ?>
   <tr>
     <td><span class="bi-en">Discount</span> <span class="bi-ar sub">/ الخصم</span></td>

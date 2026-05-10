@@ -28,7 +28,8 @@ try {
     $status    = $paid >= $total ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
 
     $invEsc = $conn->real_escape_string($invoiceNo);
-    $conn->query("INSERT INTO sales (invoice_no, user_id, branch_id, subtotal, discount, discount_type, total, paid_amount, change_amount, payment_method, status, customer_name) VALUES ('$invEsc', $userId, $branchId, $subtotal, $discount, '$discType', $total, $paid, $change, '$method', '$status', '$custName')");
+    $promoDisc = (float)($input['promo_discount'] ?? 0);
+    $conn->query("INSERT INTO sales (invoice_no, user_id, branch_id, subtotal, discount, discount_type, total, paid_amount, change_amount, payment_method, status, customer_name, promo_discount) VALUES ('$invEsc', $userId, $branchId, $subtotal, $discount, '$discType', $total, $paid, $change, '$method', '$status', '$custName', $promoDisc)");
     $saleId = $conn->insert_id;
 
     foreach ($input['cart'] as $item) {
