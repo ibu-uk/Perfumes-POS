@@ -133,8 +133,11 @@ include 'includes/head.php';
 
       <!-- Users Management -->
       <div>
-        <div class="card mb-20">
-          <div class="card-header"><span class="card-title"><?= $isAr?'المستخدمون':'Users' ?></span></div>
+        <div class="card">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="card-title"><?= $isAr?'المستخدمون':'Users' ?></span>
+            <button onclick="document.getElementById('addUserModal').style.display='flex'" class="btn btn-sm btn-primary"><?= $isAr?'+ إضافة مستخدم':'+ Add User' ?></button>
+          </div>
           <div class="table-wrapper">
             <table>
               <thead><tr>
@@ -156,8 +159,9 @@ include 'includes/head.php';
                     <?= $u['is_active'] ? ($isAr?'نشط':'Active') : ($isAr?'معطل':'Inactive') ?>
                   </span>
                 </td>
-                <td>
+                <td style="text-align:right;">
                   <?php if ($u['id'] != $_SESSION['user_id']): ?>
+                  <button onclick="openChangePassword(<?= $u['id'] ?>, '<?= htmlspecialchars($u['full_name']) ?>')" class="btn btn-sm btn-outline" style="margin-right:4px;"><?= $isAr?'كلمة المرور':'Password' ?></button>
                   <form method="POST" style="display:inline;">
                     <input type="hidden" name="action" value="toggle_user">
                     <input type="hidden" name="uid" value="<?= $u['id'] ?>">
@@ -171,71 +175,82 @@ include 'includes/head.php';
             </table>
           </div>
         </div>
-
-        <!-- Add User -->
-        <div class="card mb-20">
-          <div class="card-header"><span class="card-title"><?= $isAr?'إضافة مستخدم':'Add User' ?></span></div>
-          <div class="card-body">
-            <form method="POST">
-              <input type="hidden" name="action" value="add_user">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Name (EN)</label>
-                  <input type="text" name="full_name" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">الاسم (AR)</label>
-                  <input type="text" name="full_name_ar" class="form-control" dir="rtl">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label"><?= $isAr?'اسم المستخدم':'Username' ?></label>
-                  <input type="text" name="username" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label"><?= $isAr?'كلمة المرور':'Password' ?></label>
-                  <input type="password" name="password" class="form-control" required>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label"><?= $isAr?'الدور':'Role' ?></label>
-                <select name="role" class="form-control">
-                  <option value="cashier"><?= $isAr?'كاشير':'Cashier' ?></option>
-                  <option value="admin"><?= $isAr?'مدير':'Admin' ?></option>
-                </select>
-              </div>
-              <button type="submit" class="btn btn-success btn-full"><?= $isAr?'إضافة مستخدم':'Add User' ?></button>
-            </form>
-          </div>
-        </div>
-
-        <!-- Change Password -->
-        <div class="card">
-          <div class="card-header"><span class="card-title"><?= $isAr?'تغيير كلمة المرور':'Change Password' ?></span></div>
-          <div class="card-body">
-            <form method="POST">
-              <input type="hidden" name="action" value="change_password">
-              <div class="form-group">
-                <label class="form-label"><?= $isAr?'المستخدم':'User' ?></label>
-                <select name="uid" class="form-control">
-                  <?php foreach ($users as $u): ?>
-                  <option value="<?= $u['id'] ?>"><?= htmlspecialchars($u['full_name']) ?> (@<?= $u['username'] ?>)</option>
-                  <?php endforeach; ?>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label"><?= $isAr?'كلمة المرور الجديدة':'New Password' ?></label>
-                <input type="password" name="new_password" class="form-control" required minlength="6">
-              </div>
-              <button type="submit" class="btn btn-warning btn-full"><?= $isAr?'تغيير':'Change Password' ?></button>
-            </form>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </div>
 </div>
+
+<!-- Add User Modal -->
+<div id="addUserModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="margin:0;font-size:18px;font-weight:700;"><?= $isAr?'إضافة مستخدم جديد':'Add New User' ?></h3>
+      <button onclick="document.getElementById('addUserModal').style.display='none'" style="background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="action" value="add_user">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Name (EN)</label>
+          <input type="text" name="full_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الاسم (AR)</label>
+          <input type="text" name="full_name_ar" class="form-control" dir="rtl">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label"><?= $isAr?'اسم المستخدم':'Username' ?></label>
+          <input type="text" name="username" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><?= $isAr?'كلمة المرور':'Password' ?></label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><?= $isAr?'الدور':'Role' ?></label>
+        <select name="role" class="form-control">
+          <option value="cashier"><?= $isAr?'كاشير':'Cashier' ?></option>
+          <option value="admin"><?= $isAr?'مدير':'Admin' ?></option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full"><?= $isAr?'إضافة':'Add' ?></button>
+    </form>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="margin:0;font-size:18px;font-weight:700;"><?= $isAr?'تغيير كلمة المرور':'Change Password' ?></h3>
+      <button onclick="document.getElementById('changePasswordModal').style.display='none'" style="background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="action" value="change_password">
+      <input type="hidden" name="uid" id="changePasswordUid">
+      <div class="form-group">
+        <label class="form-label"><?= $isAr?'المستخدم':'User' ?></label>
+        <div id="changePasswordUser" style="font-weight:600;padding:8px 0;color:#374151;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><?= $isAr?'كلمة المرور الجديدة':'New Password' ?></label>
+        <input type="password" name="new_password" class="form-control" required minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full"><?= $isAr?'تغيير':'Change' ?></button>
+    </form>
+  </div>
+</div>
+
+<script>
+function openChangePassword(uid, name) {
+  document.getElementById('changePasswordUid').value = uid;
+  document.getElementById('changePasswordUser').textContent = name;
+  document.getElementById('changePasswordModal').style.display = 'flex';
+}
+</script>
 <script src="assets/js/main.js"></script>
 </body></html>
