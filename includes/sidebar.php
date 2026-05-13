@@ -9,7 +9,7 @@ $logoExists = $shopLogo && file_exists(__DIR__ . '/../' . $shopLogo);
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
         <?php if ($logoExists): ?>
-        <img src="../<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/../' . $shopLogo) ?>" alt="Logo" style="height:36px;width:36px;object-fit:contain;border-radius:6px;flex-shrink:0;">
+        <img src="<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/../' . $shopLogo) ?>" alt="Logo" style="height:36px;width:36px;object-fit:contain;border-radius:6px;flex-shrink:0;">
         <?php else: ?>
         <div class="brand-icon">🌸</div>
         <?php endif; ?>
