@@ -7,6 +7,34 @@ $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pAction = $_POST['action'] ?? '';
 
+    if ($pAction === 'upload_logo') {
+        if (!empty($_FILES['logo']['tmp_name'])) {
+            $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['png','jpg','jpeg','gif','webp','svg'])) {
+                $dest = __DIR__ . '/assets/uploads/logo.' . $ext;
+                // Remove old logo files
+                foreach (glob(__DIR__ . '/assets/uploads/logo.*') as $f) @unlink($f);
+                move_uploaded_file($_FILES['logo']['tmp_name'], $dest);
+                $logoPath = 'assets/uploads/logo.' . $ext;
+                $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('shop_logo','$logoPath') ON DUPLICATE KEY UPDATE setting_value='$logoPath'");
+                $msg = $isAr ? 'تم حفظ الشعار.' : 'Logo saved.';
+            } else {
+                $msg = 'Invalid file type. Use PNG, JPG, GIF or SVG.';
+            }
+        }
+        header('Location: settings.php?msg=' . urlencode($msg)); exit;
+    }
+
+    if ($pAction === 'save_loyalty') {
+        $loyaltyEnabled   = isset($_POST['loyalty_enabled']) ? '1' : '0';
+        $kdPerPoint       = max(1, (int)($_POST['loyalty_kd_per_point'] ?? 10));
+        $pointValue       = max(1, (int)($_POST['loyalty_point_value'] ?? 1));
+        $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('loyalty_enabled','$loyaltyEnabled') ON DUPLICATE KEY UPDATE setting_value='$loyaltyEnabled'");
+        $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('loyalty_kd_per_point','$kdPerPoint') ON DUPLICATE KEY UPDATE setting_value='$kdPerPoint'");
+        $conn->query("INSERT INTO settings (setting_key, setting_value) VALUES ('loyalty_point_value','$pointValue') ON DUPLICATE KEY UPDATE setting_value='$pointValue'");
+        $msg = $isAr ? 'تم حفظ إعدادات النقاط.' : 'Loyalty settings saved.';
+    }
+
     if ($pAction === 'save_settings') {
         $keys = ['shop_name','shop_name_ar','shop_address','shop_address_ar','shop_phone','currency','currency_ar','tax_rate','receipt_footer','receipt_footer_ar','invoice_prefix','low_stock_days'];
         foreach ($keys as $k) {
@@ -127,6 +155,57 @@ include 'includes/head.php';
               </div>
             </div>
             <button type="submit" class="btn btn-primary btn-full"><?= $isAr?'حفظ الإعدادات':'Save Settings' ?></button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Logo Upload -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title"><?= $isAr?'شعار المتجر':'Shop Logo' ?></span></div>
+        <div class="card-body">
+          <?php $currentLogo = $settings['shop_logo'] ?? ''; ?>
+          <?php if ($currentLogo && file_exists(__DIR__ . '/' . $currentLogo)): ?>
+          <div style="text-align:center;margin-bottom:16px;">
+            <img src="<?= htmlspecialchars($currentLogo) ?>?v=<?= time() ?>" alt="Logo" style="max-height:80px;max-width:200px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb;padding:8px;">
+          </div>
+          <?php endif; ?>
+          <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="upload_logo">
+            <div class="form-group">
+              <label class="form-label"><?= $isAr?'رفع شعار جديد':'Upload New Logo' ?></label>
+              <input type="file" name="logo" class="form-control" accept="image/*" required>
+              <div style="font-size:11px;color:#9ca3af;margin-top:4px;">PNG, JPG, SVG — <?= $isAr?'يظهر على القائمة الجانبية وصفحة تسجيل الدخول':'Shown on sidebar and login page' ?></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full"><?= $isAr?'حفظ الشعار':'Save Logo' ?></button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Loyalty Points Settings -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header"><span class="card-title"><?= $isAr?'نقاط الولاء':'Loyalty Points' ?></span></div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="action" value="save_loyalty">
+            <div class="form-group" style="display:flex;align-items:center;gap:12px;padding:10px;background:#f9fafb;border-radius:8px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                <input type="checkbox" name="loyalty_enabled" <?= ($settings['loyalty_enabled'] ?? '1') === '1' ? 'checked' : '' ?> style="width:18px;height:18px;">
+                <?= $isAr?'تفعيل نظام النقاط':'Enable Loyalty Points System' ?>
+              </label>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label"><?= $isAr?'كل كم دينار = نقطة':'KD Spent per 1 Point' ?></label>
+                <input type="number" name="loyalty_kd_per_point" class="form-control" min="1" value="<?= (int)($settings['loyalty_kd_per_point'] ?? 10) ?>">
+                <div style="font-size:11px;color:#9ca3af;margin-top:4px;"><?= $isAr?'مثال: 10 = كل 10 دنانير تعطي نقطة':'e.g. 10 = every 10 KD earns 1 point' ?></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label"><?= $isAr?'قيمة النقطة (دينار)':'1 Point Value (KD)' ?></label>
+                <input type="number" name="loyalty_point_value" class="form-control" min="1" value="<?= (int)($settings['loyalty_point_value'] ?? 1) ?>">
+                <div style="font-size:11px;color:#9ca3af;margin-top:4px;"><?= $isAr?'مثال: 1 = النقطة الواحدة = 1 دينار خصم':'e.g. 1 = 1 point = 1 KD discount' ?></div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full"><?= $isAr?'حفظ إعدادات النقاط':'Save Loyalty Settings' ?></button>
           </form>
         </div>
       </div>

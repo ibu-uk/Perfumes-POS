@@ -33,6 +33,24 @@ function requireAdmin() {
     }
 }
 
+function requireAttendanceAdmin() {
+    requireLogin();
+    $attendance_role = $_SESSION['attendance_role'] ?? 'none';
+    if ($attendance_role !== 'admin') {
+        header('Location: attendance_dashboard.php?error=access_denied');
+        exit;
+    }
+}
+
+function requireAttendanceHR() {
+    requireLogin();
+    $attendance_role = $_SESSION['attendance_role'] ?? 'none';
+    if ($attendance_role !== 'admin' && $attendance_role !== 'hr') {
+        header('Location: attendance_dashboard.php?error=access_denied');
+        exit;
+    }
+}
+
 function getSetting($key, $default = '') {
     global $conn;
     $key = $conn->real_escape_string($key);

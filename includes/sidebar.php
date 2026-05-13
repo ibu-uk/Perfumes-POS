@@ -3,10 +3,16 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 $isAr = isset($_SESSION['lang']) && $_SESSION['lang'] === 'ar';
 $shopName = getSetting('shop_name', 'Demo POS');
 $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
+$shopLogo = getSetting('shop_logo', '');
+$logoExists = $shopLogo && file_exists(__DIR__ . '/../' . $shopLogo);
 ?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
+        <?php if ($logoExists): ?>
+        <img src="../<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/../' . $shopLogo) ?>" alt="Logo" style="height:36px;width:36px;object-fit:contain;border-radius:6px;flex-shrink:0;">
+        <?php else: ?>
         <div class="brand-icon">🌸</div>
+        <?php endif; ?>
         <div>
             <div class="brand-name"><?= $isAr ? htmlspecialchars($shopNameAr) : htmlspecialchars($shopName) ?></div>
             <div class="brand-sub"><?= $isAr ? 'عطور وبخور' : 'Perfume & Bakhoor' ?></div>
@@ -27,6 +33,10 @@ $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span><?= $isAr ? 'الفواتير' : 'Invoices' ?></span>
         </a>
+        <a href="customers.php" class="nav-item <?= $currentPage === 'customers.php' ? 'active' : '' ?>">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span><?= $isAr ? 'العملاء' : 'Customers' ?></span>
+        </a>
 
         <div class="nav-section-label"><?= $isAr ? 'المخزون' : 'INVENTORY' ?></div>
         <a href="products.php?type=piece" class="nav-item <?= ($currentPage === 'products.php' && ($_GET['type'] ?? '') === 'piece') ? 'active' : '' ?>">
@@ -45,7 +55,7 @@ $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
             <span><?= $isAr ? 'الفئات' : 'Categories' ?></span>
         </a>
-        <?php if ($_SESSION['user_role'] === 'admin'): ?>
+        <?php if (($_SESSION['user_role'] ?? '') === 'admin'): ?>
         <a href="promotions.php" class="nav-item <?= $currentPage === 'promotions.php' ? 'active' : '' ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
             <span><?= $isAr ? 'العروض الترويجية' : 'Promotions' ?></span>
@@ -57,7 +67,8 @@ $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             <span><?= $isAr ? 'تقارير المبيعات' : 'Sales Report' ?></span>
         </a>
-        <?php if ($_SESSION['user_role'] === 'admin'): ?>
+
+        <?php if (($_SESSION['user_role'] ?? '') === 'admin'): ?>
         <a href="expenses.php" class="nav-item <?= $currentPage === 'expenses.php' ? 'active' : '' ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             <span><?= $isAr ? 'المصروفات' : 'Expenses' ?></span>
@@ -74,7 +85,7 @@ $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
             <div class="user-avatar"><?= strtoupper(substr($_SESSION['user_name'] ?? 'U', 0, 1)) ?></div>
             <div>
                 <div class="user-name"><?= htmlspecialchars($_SESSION['user_name'] ?? '') ?></div>
-                <div class="user-role"><?= $isAr ? ($_SESSION['user_role'] === 'admin' ? 'مدير' : 'كاشير') : ucfirst($_SESSION['user_role'] ?? '') ?></div>
+                <div class="user-role"><?= $isAr ? (($_SESSION['user_role'] ?? '') === 'admin' ? 'مدير' : 'كاشير') : ucfirst($_SESSION['user_role'] ?? '') ?></div>
             </div>
         </div>
         <a href="logout.php" class="logout-btn" title="Logout" onclick="confirmLogout(event)">

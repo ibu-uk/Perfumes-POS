@@ -31,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $shopName = getSetting('shop_name', 'Demo POS');
 $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
+$shopLogo = getSetting('shop_logo', '');
+$logoExists = $shopLogo && file_exists(__DIR__ . '/' . $shopLogo);
 ?>
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -54,7 +56,11 @@ $shopNameAr = getSetting('shop_name_ar', 'Demo POS');
 <div class="login-page">
   <div class="login-card">
     <div class="login-logo">
+      <?php if ($logoExists): ?>
+      <img src="<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/' . $shopLogo) ?>" alt="Logo" style="height:72px;width:auto;max-width:180px;object-fit:contain;margin-bottom:8px;">
+      <?php else: ?>
       <div class="logo-icon">🌸</div>
+      <?php endif; ?>
       <div class="bilingual-title">
         <span class="en"><?= htmlspecialchars($shopName) ?></span>
         <span class="ar"><?= htmlspecialchars($shopNameAr) ?></span>

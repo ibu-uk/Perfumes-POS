@@ -27,6 +27,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $desc     = $conn->real_escape_string($_POST['description'] ?? '');
         $descAr   = $conn->real_escape_string($_POST['description_ar'] ?? '');
 
+        // Handle product image upload
+        $imageClause = '';
+        if (!empty($_FILES['product_image']['tmp_name'])) {
+            $ext = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['png','jpg','jpeg','gif','webp'])) {
+                $imgName = 'prod_' . time() . '_' . mt_rand(1000,9999) . '.' . $ext;
+                $imgPath = __DIR__ . '/assets/uploads/products/' . $imgName;
+                if (move_uploaded_file($_FILES['product_image']['tmp_name'], $imgPath)) {
+                    // Remove old image if editing
+                    if ($id) {
+                        $rOld = $conn->query("SELECT image FROM products WHERE id=$id LIMIT 1");
+                        $oldImg = $rOld ? $rOld->fetch_assoc() : null;
+                        if ($oldImg && $oldImg['image'] && file_exists(__DIR__ . '/' . $oldImg['image'])) {
+                            @unlink(__DIR__ . '/' . $oldImg['image']);
+                        }
+                    }
+                    $imgRelPath = $conn->real_escape_string('assets/uploads/products/' . $imgName);
+                    $imageClause = ", image='$imgRelPath'";
+                }
+            }
+        }
+
         // Auto-generate main barcode if blank and editing existing product
         if (!$barcode && $id) {
             $barcode = 'P' . str_pad($id, 6, '0', STR_PAD_LEFT);
@@ -35,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $barcodeClause = $barcode ? "'" . $conn->real_escape_string($barcode) . "'" : 'NULL';
 
         if ($id) {
-            $conn->query("UPDATE products SET name='$name', name_ar='$nameAr', category_id=$catId, type='$type', barcode=$barcodeClause, base_price=$basePrice, weight_unit='$weightU', stock=$stock, low_stock_threshold=$threshold, description='$desc', description_ar='$descAr' WHERE id=$id");
+            $conn->query("UPDATE products SET name='$name', name_ar='$nameAr', category_id=$catId, type='$type', barcode=$barcodeClause, base_price=$basePrice, weight_unit='$weightU', stock=$stock, low_stock_threshold=$threshold, description='$desc', description_ar='$descAr'$imageClause WHERE id=$id");
             $msg = $isAr ? 'تم تحديث المنتج.' : 'Product updated.';
         } else {
             $conn->query("INSERT INTO products (name, name_ar, category_id, type, barcode, base_price, weight_unit, stock, low_stock_threshold, description, description_ar) VALUES ('$name','$nameAr',$catId,'$type',$barcodeClause,$basePrice,'$weightU',$stock,$threshold,'$desc','$descAr')");
@@ -44,6 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$barcode) {
                 $autoBarcode = 'P' . str_pad($id, 6, '0', STR_PAD_LEFT);
                 $conn->query("UPDATE products SET barcode='$autoBarcode' WHERE id=$id");
+            }
+            // Save image for new product
+            if (!empty($imgRelPath)) {
+                $conn->query("UPDATE products SET image='$imgRelPath' WHERE id=$id");
             }
             $msg = $isAr ? 'تمت إضافة المنتج.' : 'Product added.';
         }
@@ -215,8 +241,17 @@ include 'includes/head.php';
               ?>
               <tr>
                 <td>
-                  <div style="font-weight:600;"><?= htmlspecialchars($isAr ? $p['name_ar'] : $p['name']) ?></div>
-                  <div style="font-size:11px;color:#9ca3af;"><?= htmlspecialchars($isAr ? $p['name'] : $p['name_ar']) ?></div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <?php if (!empty($p['image']) && file_exists(__DIR__ . '/' . $p['image'])): ?>
+                    <img src="<?= htmlspecialchars($p['image']) ?>" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0;">
+                    <?php else: ?>
+                    <div style="width:36px;height:36px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🌸</div>
+                    <?php endif; ?>
+                    <div>
+                      <div style="font-weight:600;"><?= htmlspecialchars($isAr ? $p['name_ar'] : $p['name']) ?></div>
+                      <div style="font-size:11px;color:#9ca3af;"><?= htmlspecialchars($isAr ? $p['name'] : $p['name_ar']) ?></div>
+                    </div>
+                  </div>
                 </td>
                 <td style="color:#6b7280;font-size:12px;"><?= htmlspecialchars($isAr ? ($p['cat_name_ar'] ?? '—') : ($p['cat_name'] ?? '—')) ?></td>
                 <td><span class="type-pill <?= $p['type'] === 'piece' ? 'type-piece' : 'type-weight' ?>"><?= $p['type'] === 'piece' ? ($isAr?'قطعة':'piece') : ($isAr?'وزن':'weight') ?></span></td>
@@ -306,7 +341,7 @@ include 'includes/head.php';
           <?php if ($editProduct): ?><a href="products.php<?= $typeFilter ? '?type='.$typeFilter : '' ?>" class="btn btn-sm btn-outline"><?= $isAr ? 'إلغاء' : 'Cancel' ?></a><?php endif; ?>
         </div>
         <div class="card-body" style="overflow-y:auto;max-height:calc(100vh - 160px);">
-          <form method="POST" id="productForm">
+          <form method="POST" id="productForm" enctype="multipart/form-data">
             <input type="hidden" name="action" value="save_product">
             <input type="hidden" name="id" value="<?= $editProduct['id'] ?? 0 ?>">
 
@@ -418,6 +453,15 @@ include 'includes/head.php';
                 ℹ️ <strong><?= $isAr?'المخزون':'Stock' ?>:</strong> <?= $isAr?'أدخل عدد القطع لكل حجم. سيتم خصمها تلقائياً عند كل بيع.':'Enter quantity per size. Stock auto-decreases on every sale.' ?>
                 &nbsp;|&nbsp; <strong><?= $isAr?'التنبيه':'Alert' ?>:</strong> <?= $isAr?'تنبيه عند الوصول لهذا الحد':'Alert when stock reaches this number' ?>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label"><?= $isAr ? 'صورة المنتج' : 'Product Image' ?></label>
+              <?php if (!empty($editProduct['image']) && file_exists(__DIR__ . '/' . $editProduct['image'])): ?>
+              <div style="margin-bottom:8px;"><img src="<?= htmlspecialchars($editProduct['image']) ?>" style="height:60px;width:60px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>
+              <?php endif; ?>
+              <input type="file" name="product_image" class="form-control" accept="image/*">
+              <div style="font-size:11px;color:#9ca3af;margin-top:4px;">PNG, JPG, WebP</div>
             </div>
 
             <button type="submit" class="btn btn-primary btn-full" style="margin-top:16px;">

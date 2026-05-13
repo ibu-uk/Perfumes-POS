@@ -9,7 +9,7 @@ $categories = $rCats ? $rCats->fetch_all(MYSQLI_ASSOC) : [];
 
 // Load products for JS
 $rProds = $conn->query("
-    SELECT p.id, p.name, p.name_ar, p.type, p.base_price, p.weight_unit, p.stock, p.low_stock_threshold, p.barcode, c.name as cat_name, c.name_ar as cat_name_ar, c.id as cat_id
+    SELECT p.id, p.name, p.name_ar, p.type, p.base_price, p.weight_unit, p.stock, p.low_stock_threshold, p.barcode, p.image, c.name as cat_name, c.name_ar as cat_name_ar, c.id as cat_id
     FROM products p
     LEFT JOIN categories c ON c.id=p.category_id
     WHERE p.is_active=1 ORDER BY p.name
@@ -168,8 +168,23 @@ include 'includes/head.php';
           </div>
           <!-- Customer & discount -->
           <div style="padding:0 10px 6px;border-top:1px solid #f3f4f6;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px;">
-              <input type="tel" id="custName" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'رقم الجوال' : 'Mobile No.' ?>" pattern="[0-9+]*">
+            <div style="padding-top:8px;position:relative;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+                <div style="position:relative;">
+                  <input type="tel" id="custPhone" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'رقم الجوال' : 'Mobile No.' ?>" autocomplete="off" oninput="searchCustomer()">
+                  <div id="custDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:999;max-height:160px;overflow-y:auto;"></div>
+                </div>
+                <input type="text" id="custName" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'اسم العميل' : 'Customer Name' ?>">
+              </div>
+              <div id="custPointsBadge" style="display:none;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:11px;margin-bottom:4px;display:none;align-items:center;justify-content:space-between;">
+                <span style="font-weight:700;color:#854d0e;">★ <span id="custPointsVal">0</span> <?= $isAr ? 'نقطة' : 'pts' ?> = <span id="custPointsKd">0.000</span> KD</span>
+                <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:#1d4ed8;font-size:11px;">
+                  <input type="checkbox" id="redeemPoints" onchange="applyPointsRedeem()" style="width:14px;height:14px;">
+                  <?= $isAr ? 'استبدال' : 'Redeem' ?>
+                </label>
+              </div>
+              <input type="hidden" id="custId" value="">
+              <input type="hidden" id="custPointsEnabled" value="1">
               <div style="display:flex;gap:4px;">
                 <input type="number" id="discountAmt" class="form-control" style="font-size:12px;" placeholder="<?= $isAr ? 'خصم' : 'Disc.' ?>" min="0" step="0.001" oninput="recalcCart()">
                 <span style="display:flex;align-items:center;font-size:12px;font-weight:600;color:#6b7280;padding:0 8px;">KD</span>
@@ -308,6 +323,9 @@ include 'includes/head.php';
 
 <script>
 const isAr = <?= $isAr ? 'true' : 'false' ?>;
+const loyaltyEnabled = <?= getSetting('loyalty_enabled','1') === '1' ? 'true' : 'false' ?>;
+const loyaltyKdPerPoint = <?= (int)getSetting('loyalty_kd_per_point', 10) ?>;
+const loyaltyPointValue = <?= (int)getSetting('loyalty_point_value', 1) ?>;
 const allProducts = <?= json_encode($products, JSON_UNESCAPED_UNICODE) ?>;
 let cart = [];
 let currentFilter = '';
@@ -390,7 +408,9 @@ function renderProducts(q = '', catId = '', typeFilter = '') {
         }
 
         const unit = p.type === 'weight' ? (p.weight_unit === 'tola' ? (isAr?'تولة':'tola') : (isAr?'غ':'g')) : (isAr?'قطعة':'pcs');
+        const imgHtml = p.image ? `<div style="text-align:center;margin-bottom:6px;"><img src="${p.image}" style="height:52px;width:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>` : '';
         return `<div class="product-card-pos" onclick="selectProduct(${p.id})" style="align-self:start;">
+            ${imgHtml}
             <div class="p-name">${name}</div>
             <div class="p-cat">${cat || ''}</div>
             <div class="p-price">${priceStr}</div>
@@ -717,6 +737,9 @@ async function completeSale() {
         paid_amount: paid,
         payment_method: selectedMethod,
         customer_name: document.getElementById('custName').value,
+        customer_phone: document.getElementById('custPhone').value,
+        customer_id: document.getElementById('custId').value || null,
+        redeemed_points: document.getElementById('redeemPoints').checked ? (parseInt(document.getElementById('custPointsVal').textContent) || 0) : 0,
         tax: 0,
         promo_discount: cart.reduce((sum, c) => {
             if (c.promo && c.originalPrice) {
@@ -750,10 +773,75 @@ function printReceipt() {
 function newSale() {
     cart = [];
     renderCart();
+    document.getElementById('custPhone').value = '';
     document.getElementById('custName').value = '';
+    document.getElementById('custId').value = '';
+    document.getElementById('custPointsEnabled').value = '1';
+    document.getElementById('redeemPoints').checked = false;
+    document.getElementById('custPointsBadge').style.display = 'none';
     document.getElementById('discountAmt').value = '';
     document.getElementById('successModal').classList.add('hidden');
 }
+
+// ---- Customer Search ----
+let custSearchTimer = null;
+function searchCustomer() {
+    const q = document.getElementById('custPhone').value.trim();
+    const dd = document.getElementById('custDropdown');
+    clearTimeout(custSearchTimer);
+    if (q.length < 2) { dd.style.display = 'none'; return; }
+    custSearchTimer = setTimeout(async () => {
+        try {
+            const res = await fetch('api/search_customers.php?q=' + encodeURIComponent(q));
+            const data = await res.json();
+            if (!data.length) { dd.style.display = 'none'; return; }
+            dd.innerHTML = data.map(c =>
+                `<div onclick="selectCustomer(${c.id},'${c.name.replace(/'/g,"\\'")}','${(c.phone||'').replace(/'/g,"\\'")}',${c.points},${c.points_enabled??1})"
+                  style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:12px;"
+                  onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+                  <span style="font-weight:600;">${c.name}</span>
+                  <span style="color:#9ca3af;margin-left:8px;">${c.phone||''}</span>
+                  <span style="float:right;color:#854d0e;">★ ${c.points}</span>
+                </div>`
+            ).join('');
+            dd.style.display = 'block';
+        } catch(e) {}
+    }, 300);
+}
+function selectCustomer(id, name, phone, points, pointsEnabled) {
+    document.getElementById('custId').value = id;
+    document.getElementById('custName').value = name;
+    document.getElementById('custPhone').value = phone;
+    document.getElementById('custPointsEnabled').value = pointsEnabled;
+    document.getElementById('custDropdown').style.display = 'none';
+    document.getElementById('redeemPoints').checked = false;
+    const badge = document.getElementById('custPointsBadge');
+    if (loyaltyEnabled && pointsEnabled && points > 0) {
+        const kdVal = (points * loyaltyPointValue).toFixed(3);
+        document.getElementById('custPointsVal').textContent = points;
+        document.getElementById('custPointsKd').textContent = kdVal;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+    applyPointsRedeem();
+}
+function applyPointsRedeem() {
+    const redeem = document.getElementById('redeemPoints').checked;
+    const points = parseInt(document.getElementById('custPointsVal').textContent) || 0;
+    if (redeem && loyaltyEnabled) {
+        const kdDiscount = points * loyaltyPointValue;
+        document.getElementById('discountAmt').value = kdDiscount.toFixed(3);
+    } else {
+        document.getElementById('discountAmt').value = '';
+    }
+    recalcCart();
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#custPhone') && !e.target.closest('#custDropdown')) {
+        document.getElementById('custDropdown').style.display = 'none';
+    }
+});
 
 // ---- Recent Sales ----
 async function loadRecentSales() {
