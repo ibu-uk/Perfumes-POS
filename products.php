@@ -6,6 +6,45 @@ $typeFilter = $_GET['type'] ?? '';
 $action = $_GET['action'] ?? '';
 $editId = (int)($_GET['id'] ?? 0);
 
+// Thumbnail generation function
+function createThumbnail($src, $dest, $width, $height) {
+    $info = getimagesize($src);
+    if (!$info) return false;
+    $mime = $info['mime'];
+    $type = explode('/', $mime)[1];
+    $image = null;
+    switch ($type) {
+        case 'jpeg': $image = imagecreatefromjpeg($src); break;
+        case 'jpg':  $image = imagecreatefromjpeg($src); break;
+        case 'png':  $image = imagecreatefrompng($src); break;
+        case 'gif':  $image = imagecreatefromgif($src); break;
+        case 'webp': $image = imagecreatefromwebp($src); break;
+        default: return false;
+    }
+    if (!$image) return false;
+    $srcW = imagesx($image);
+    $srcH = imagesy($image);
+    $ratio = min($width / $srcW, $height / $srcH);
+    $newW = (int)($srcW * $ratio);
+    $newH = (int)($srcH * $ratio);
+    $thumb = imagecreatetruecolor($width, $height);
+    imagefill($thumb, 0, 0, imagecolorallocatealpha($thumb, 255, 255, 255, 127));
+    imagesavealpha($thumb, true);
+    $dstX = (int)(($width - $newW) / 2);
+    $dstY = (int)(($height - $newH) / 2);
+    imagecopyresampled($thumb, $image, $dstX, $dstY, 0, 0, $newW, $newH, $srcW, $srcH);
+    switch ($type) {
+        case 'jpeg':
+        case 'jpg':  imagejpeg($thumb, $dest, 85); break;
+        case 'png':  imagepng($thumb, $dest, 8); break;
+        case 'gif':  imagegif($thumb, $dest); break;
+        case 'webp': imagewebp($thumb, $dest, 85); break;
+    }
+    imagedestroy($image);
+    imagedestroy($thumb);
+    return true;
+}
+
 $msg = '';
 $msgType = 'success';
 
@@ -29,22 +68,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Handle product image upload
         $imageClause = '';
+        $thumbClause = '';
         if (!empty($_FILES['product_image']['tmp_name'])) {
             $ext = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['png','jpg','jpeg','gif','webp'])) {
                 $imgName = 'prod_' . time() . '_' . mt_rand(1000,9999) . '.' . $ext;
                 $imgPath = __DIR__ . '/assets/uploads/products/' . $imgName;
                 if (move_uploaded_file($_FILES['product_image']['tmp_name'], $imgPath)) {
+                    // Generate thumbnail (150x150)
+                    $thumbName = 'thumb_' . $imgName;
+                    $thumbPath = __DIR__ . '/assets/uploads/products/' . $thumbName;
+                    createThumbnail($imgPath, $thumbPath, 150, 150);
                     // Remove old image if editing
                     if ($id) {
                         $rOld = $conn->query("SELECT image FROM products WHERE id=$id LIMIT 1");
                         $oldImg = $rOld ? $rOld->fetch_assoc() : null;
                         if ($oldImg && $oldImg['image'] && file_exists(__DIR__ . '/' . $oldImg['image'])) {
                             @unlink(__DIR__ . '/' . $oldImg['image']);
+                            @unlink(__DIR__ . '/' . str_replace('prod_', 'thumb_', $oldImg['image']));
                         }
                     }
                     $imgRelPath = $conn->real_escape_string('assets/uploads/products/' . $imgName);
+                    $thumbRelPath = $conn->real_escape_string('assets/uploads/products/' . $thumbName);
                     $imageClause = ", image='$imgRelPath'";
+                    $thumbClause = ", thumb='$thumbRelPath'";
                 }
             }
         }
@@ -57,20 +104,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $barcodeClause = $barcode ? "'" . $conn->real_escape_string($barcode) . "'" : 'NULL';
 
         if ($id) {
-            $conn->query("UPDATE products SET name='$name', name_ar='$nameAr', category_id=$catId, type='$type', barcode=$barcodeClause, base_price=$basePrice, weight_unit='$weightU', stock=$stock, low_stock_threshold=$threshold, description='$desc', description_ar='$descAr'$imageClause WHERE id=$id");
+            $conn->query("UPDATE products SET name='$name', name_ar='$nameAr', category_id=$catId, type='$type', barcode=$barcodeClause, base_price=$basePrice, weight_unit='$weightU', stock=$stock, low_stock_threshold=$threshold, description='$desc', description_ar='$descAr'$imageClause$thumbClause WHERE id=$id");
             $msg = $isAr ? 'تم تحديث المنتج.' : 'Product updated.';
         } else {
-            $conn->query("INSERT INTO products (name, name_ar, category_id, type, barcode, base_price, weight_unit, stock, low_stock_threshold, description, description_ar) VALUES ('$name','$nameAr',$catId,'$type',$barcodeClause,$basePrice,'$weightU',$stock,$threshold,'$desc','$descAr')");
+            $conn->query("INSERT INTO products (name, name_ar, category_id, type, barcode, base_price, weight_unit, stock, low_stock_threshold, description, description_ar, image, thumb) VALUES ('$name','$nameAr',$catId,'$type',$barcodeClause,$basePrice,'$weightU',$stock,$threshold,'$desc','$descAr','$imgRelPath','$thumbRelPath')");
             $id = $conn->insert_id;
             // Auto-generate barcode for new products if blank
             if (!$barcode) {
                 $autoBarcode = 'P' . str_pad($id, 6, '0', STR_PAD_LEFT);
                 $conn->query("UPDATE products SET barcode='$autoBarcode' WHERE id=$id");
             }
-            // Save image for new product
-            if (!empty($imgRelPath)) {
-                $conn->query("UPDATE products SET image='$imgRelPath' WHERE id=$id");
-            }
+            // Image already saved in INSERT above with thumb
             $msg = $isAr ? 'تمت إضافة المنتج.' : 'Product added.';
         }
 
@@ -242,8 +286,8 @@ include 'includes/head.php';
               <tr>
                 <td>
                   <div style="display:flex;align-items:center;gap:10px;">
-                    <?php if (!empty($p['image']) && file_exists(__DIR__ . '/' . $p['image'])): ?>
-                    <img src="<?= htmlspecialchars($p['image']) ?>" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0;">
+                    <?php if (!empty($p['thumb']) && file_exists(__DIR__ . '/' . $p['thumb'])): ?>
+                    <img src="<?= htmlspecialchars($p['thumb']) ?>" loading="lazy" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;flex-shrink:0;">
                     <?php else: ?>
                     <div style="width:36px;height:36px;background:#f3f4f6;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🌸</div>
                     <?php endif; ?>
@@ -458,7 +502,7 @@ include 'includes/head.php';
             <div class="form-group">
               <label class="form-label"><?= $isAr ? 'صورة المنتج' : 'Product Image' ?></label>
               <?php if (!empty($editProduct['image']) && file_exists(__DIR__ . '/' . $editProduct['image'])): ?>
-              <div style="margin-bottom:8px;"><img src="<?= htmlspecialchars($editProduct['image']) ?>" style="height:60px;width:60px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>
+              <div style="margin-bottom:8px;"><img src="<?= htmlspecialchars($editProduct['thumb'] ?? $editProduct['image']) ?>" style="height:60px;width:60px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>
               <?php endif; ?>
               <input type="file" name="product_image" class="form-control" accept="image/*">
               <div style="font-size:11px;color:#9ca3af;margin-top:4px;">PNG, JPG, WebP</div>

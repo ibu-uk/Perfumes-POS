@@ -57,7 +57,7 @@ $logoExists = $shopLogo && file_exists(__DIR__ . '/' . $shopLogo);
   <div class="login-card">
     <div class="login-logo">
       <?php if ($logoExists): ?>
-      <img src="<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/' . $shopLogo) ?>" alt="Logo" style="height:72px;width:auto;max-width:180px;object-fit:contain;margin-bottom:8px;">
+      <img src="<?= htmlspecialchars($shopLogo) ?>?v=<?= filemtime(__DIR__ . '/' . $shopLogo) ?>" loading="lazy" alt="Logo" style="height:72px;width:auto;max-width:180px;object-fit:contain;margin-bottom:8px;">
       <?php else: ?>
       <div class="logo-icon">🌸</div>
       <?php endif; ?>

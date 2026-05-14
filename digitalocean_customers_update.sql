@@ -14,26 +14,24 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add customer_id column to sales table
+-- NOTE: Run each ALTER TABLE block separately in phpMyAdmin.
+-- If you get #1060 "Duplicate column" error, that column already exists — skip it and continue.
+
 ALTER TABLE sales ADD COLUMN customer_id INT NULL AFTER customer_name;
 
--- Add points_enabled per customer
 ALTER TABLE customers ADD COLUMN points_enabled TINYINT(1) DEFAULT 1 AFTER points;
 
--- Add redeemed_points to sales
 ALTER TABLE sales ADD COLUMN redeemed_points INT DEFAULT 0 AFTER promo_discount;
 
--- Insert loyalty settings
+-- These are safe to run all at once (INSERT IGNORE skips duplicates automatically)
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
   ('loyalty_enabled', '1'),
   ('loyalty_kd_per_point', '10'),
-  ('loyalty_point_value', '1');
+  ('loyalty_point_value', '1'),
+  ('shop_logo', '');
 
--- Add product image column
-ALTER TABLE products ADD COLUMN image VARCHAR(255) DEFAULT NULL AFTER barcode;
-
--- Add shop_logo setting row
-INSERT IGNORE INTO settings (setting_key, setting_value) VALUES ('shop_logo', '');
+-- Add thumb column for product thumbnails
+ALTER TABLE products ADD COLUMN thumb VARCHAR(255) DEFAULT NULL AFTER image;
 
 -- Add foreign key (optional, run separately if it fails)
 -- ALTER TABLE sales ADD FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL;

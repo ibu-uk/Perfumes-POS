@@ -9,7 +9,7 @@ $categories = $rCats ? $rCats->fetch_all(MYSQLI_ASSOC) : [];
 
 // Load products for JS
 $rProds = $conn->query("
-    SELECT p.id, p.name, p.name_ar, p.type, p.base_price, p.weight_unit, p.stock, p.low_stock_threshold, p.barcode, p.image, c.name as cat_name, c.name_ar as cat_name_ar, c.id as cat_id
+    SELECT p.id, p.name, p.name_ar, p.type, p.base_price, p.weight_unit, p.stock, p.low_stock_threshold, p.barcode, p.image, p.thumb, c.name as cat_name, c.name_ar as cat_name_ar, c.id as cat_id
     FROM products p
     LEFT JOIN categories c ON c.id=p.category_id
     WHERE p.is_active=1 ORDER BY p.name
@@ -408,7 +408,7 @@ function renderProducts(q = '', catId = '', typeFilter = '') {
         }
 
         const unit = p.type === 'weight' ? (p.weight_unit === 'tola' ? (isAr?'تولة':'tola') : (isAr?'غ':'g')) : (isAr?'قطعة':'pcs');
-        const imgHtml = p.image ? `<div style="text-align:center;margin-bottom:6px;"><img src="${p.image}" style="height:52px;width:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>` : '';
+        const imgHtml = (p.thumb || p.image) ? `<div style="text-align:center;margin-bottom:6px;"><img src="${p.thumb || p.image}" loading="lazy" style="height:52px;width:52px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;"></div>` : '';
         return `<div class="product-card-pos" onclick="selectProduct(${p.id})" style="align-self:start;">
             ${imgHtml}
             <div class="p-name">${name}</div>
